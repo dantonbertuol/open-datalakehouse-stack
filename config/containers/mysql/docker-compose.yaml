@@ -1,0 +1,25 @@
+version: "3"
+services: 
+  mysql_knex:
+    container_name: mysql_knex
+    hostname: mysql_knex
+    image: mysql
+    restart: always
+    command: 
+      - "mysqld"
+      - "--default-authentication-plugin=mysql_native_password"
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+      - "--innodb_force_recovery=0"
+      - "--wait_timeout=28800"
+      - "--innodb_buffer_pool_size=4G"
+    volumes: 
+      - ../data/mysql:/var/lib/mysql
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: MoodleDBBI
+      MYSQL_DATABASE: moodle
+      MYSQL_USER: moodle
+      MYSQL_PASSWORD: MoodleDBBI
+      TZ: America/Sao_Paulo
