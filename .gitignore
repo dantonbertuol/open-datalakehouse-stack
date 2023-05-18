@@ -1,2 +1,4 @@
 data/*
 config/containers/airbyte/
+env/
+__pycache__/
