@@ -1,2 +1,4 @@
 requests
 types-requests
+pymysql
+types-pymysql
