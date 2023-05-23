@@ -15,12 +15,12 @@ class Consumer():
         '''
         self.endpoint: str = endpoint
 
-    def get_data(self) -> dict:
+    def get_data(self, filter: str = "") -> dict:
         '''
         Get data from endpoint
 
         Returns:
             dict: data from endpoint
         '''
-        response = requests.get(self.endpoint)
+        response = requests.get(self.endpoint + filter)
         return response.json()
