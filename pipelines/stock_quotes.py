@@ -1,12 +1,12 @@
 from src.database.mysql import MySQL
+from elt.extract.brapi_api import BrapiAPI
 from datetime import datetime
 # import sys
 from pathlib import Path
 
 DATA_LOG: str = datetime.now().strftime('%d-%m-%Y')
 PROJECT_PATH = Path(__file__).absolute().parent.parent
-CHROME_DRIVER_PATH = f'{PROJECT_PATH}/bin/chromedriver/chromedriver'
-LOG_PATH = f'{PROJECT_PATH}/logs/elt_moodle/log_' + DATA_LOG + '.txt'
+LOG_PATH = f'{PROJECT_PATH}/logs/stocks_pipeline/log_' + DATA_LOG + '.txt'
 
 # sys.path.insert(1, str(PROJECT_PATH))
 
@@ -16,7 +16,7 @@ class StockQuotesPipeline():
     All quotes pipeline source code
     '''
 
-    def create_table_stock_struct(self):
+    def create_table_stock_struct(self) -> None:
         '''
         Create table stock structure
         '''
@@ -40,7 +40,7 @@ class StockQuotesPipeline():
 
         database.close_connection()
 
-    def create_table_stock_quotes_struct(self):
+    def create_table_stock_quotes_struct(self) -> None:
         '''
         Create table stock quotes structure
         '''
@@ -83,12 +83,60 @@ class StockQuotesPipeline():
                     "twoHundredDayAverage": "FLOAT",
                     "twoHundredDayAverageChange": "FLOAT",
                     "twoHundredDayAverageChangePercent": "FLOAT",
-                    'primary key': '(id)'
+                    'primary key': '(id)',
+                    'unique': '(symbol,regularMarketTime)'
                 }
             )
+
+    def extract_api_data(self, endpoint: str) -> None:
+        '''
+        Extract data from api
+
+        Args:
+            endpoint (str): endpoint url
+
+        Returns:
+            dict: dict data
+        '''
+        data: dict = {}
+        database = MySQL(
+            host='localhost',
+            user='root',
+            password='BrapiDev',
+            database='stock_quotes'
+        )
+
+        if 'available' in endpoint:
+            brapi_api = BrapiAPI(endpoint)
+            data = brapi_api.get_data()
+            stocks = data.get('stocks')
+
+            for stock in stocks:
+                database.insert_data('stock', {'symbol': stock})
+
+        elif 'quote' in endpoint:
+            stocks = database.get_data('stock', 'symbol')
+            stocks = [stock[0] for stock in stocks]
+
+            # Somente busca cotação se retornou algum stock
+            if len(stocks) > 0:
+                quotes = BrapiAPI(endpoint)
+
+                # Busca 200 por vez por limitação da API
+                for i in range(0, len(stocks), 200):
+                    quotes_data: dict = quotes.get_data(",".join(stocks[i:i+200]))
+                    for result in quotes_data.get('results'):
+                        if result.get('regularMarketTime') is not None:
+                            result['regularMarketTime'] = datetime.strptime(
+                                result.get('regularMarketTime'), '%Y-%m-%dT%H:%M:%S.%fZ')
+                        database.insert_data('stock_quotes', result)
+
+        database.close_connection()
 
 
 if __name__ == '__main__':
     pipeline = StockQuotesPipeline()
     pipeline.create_table_stock_struct()
     pipeline.create_table_stock_quotes_struct()
+    pipeline.extract_api_data('https://brapi.dev/api/available/')
+    pipeline.extract_api_data('https://brapi.dev/api/quote/')
