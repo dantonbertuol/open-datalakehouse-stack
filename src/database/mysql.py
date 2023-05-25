@@ -5,6 +5,7 @@ class MySQL():
     '''
     Class to connect and manipulate MySQL database
     '''
+
     def __init__(self, host: str, user: str, password: str, database: str) -> None:
         '''
         Constructor
@@ -74,7 +75,9 @@ class MySQL():
         try:
             self.cursor.execute(sql, list(data.values()))
             self.connection.commit()
-        except Exception as e:
+        except pymysql.err.IntegrityError:  # Ignore duplicate data
+            pass
+        except Exception as e:  # Other errors
             print('Erro ao inserir dados: ', e)
             self.connection.rollback()
 
