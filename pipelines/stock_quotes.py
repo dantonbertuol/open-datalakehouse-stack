@@ -1,4 +1,5 @@
 from src.database.mysql import MySQL
+from src.utils.logs import Logs
 from elt.extract.brapi_api import BrapiAPI
 from datetime import datetime
 # import sys
@@ -11,10 +12,13 @@ LOG_PATH = f'{PROJECT_PATH}/logs/stocks_pipeline/log_' + DATA_LOG + '.txt'
 # sys.path.insert(1, str(PROJECT_PATH))
 
 
-class StockQuotesPipeline():
+class StockQuotesPipeline(Logs):
     '''
     All quotes pipeline source code
     '''
+
+    def __init__(self) -> None:
+        self.logs = Logs(LOG_PATH)
 
     def create_table_stock_struct(self) -> None:
         '''
@@ -27,8 +31,10 @@ class StockQuotesPipeline():
             database='stock_quotes'
         )
 
+        success: bool = False
+
         if not database.verify_table_exists('stock'):
-            database.create_table(
+            success = database.create_table(
                 'stock',
                 {
                     'id': 'INT AUTO_INCREMENT',
@@ -37,6 +43,10 @@ class StockQuotesPipeline():
                     'unique': '(symbol)'
                 }
             )
+            if success:
+                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock created')
+            else:
+                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock not created')
 
         database.close_connection()
 
@@ -51,8 +61,10 @@ class StockQuotesPipeline():
             database='stock_quotes'
         )
 
+        success: bool = False
+
         if not database.verify_table_exists('stock_quotes'):
-            database.create_table(
+            success = database.create_table(
                 'stock_quotes',
                 {
                     "id": "INT AUTO_INCREMENT",
@@ -87,6 +99,10 @@ class StockQuotesPipeline():
                     'unique': '(symbol,regularMarketTime)'
                 }
             )
+            if success:
+                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock_quotes created')
+            else:
+                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock_quotes not created')
 
     def extract_api_data(self, endpoint: str) -> None:
         '''
@@ -99,6 +115,7 @@ class StockQuotesPipeline():
             dict: dict data
         '''
         data: dict = {}
+        success: bool = False
         database = MySQL(
             host='localhost',
             user='root',
@@ -112,7 +129,9 @@ class StockQuotesPipeline():
             stocks = data.get('stocks')
 
             for stock in stocks:
-                database.insert_data('stock', {'symbol': stock})
+                success = database.insert_data('stock', {'symbol': stock})
+                if not success:
+                    self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Stock {stock} not inserted')
 
         elif 'quote' in endpoint:
             stocks = database.get_data('stock', 'symbol')
@@ -129,7 +148,13 @@ class StockQuotesPipeline():
                         if result.get('regularMarketTime') is not None:
                             result['regularMarketTime'] = datetime.strptime(
                                 result.get('regularMarketTime'), '%Y-%m-%dT%H:%M:%S.%fZ')
-                        database.insert_data('stock_quotes', result)
+                        success = database.insert_data('stock_quotes', result)
+                        if not success:
+                            self.logs.write(
+                                f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Stock {result.get("symbol")} '
+                                'not inserted')
+            else:
+                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: No stock to search')
 
         database.close_connection()
 

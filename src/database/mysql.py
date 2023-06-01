@@ -41,7 +41,7 @@ class MySQL():
             return True
         return False
 
-    def create_table(self, table_name: str, columns: dict) -> None:
+    def create_table(self, table_name: str, columns: dict) -> bool:
         '''
         Create a table in the database
 
@@ -49,7 +49,8 @@ class MySQL():
             table_name (str): table name
             columns (dict): columns of the table
         '''
-        sql = f'CREATE TABLE {table_name} ('
+        success: bool = True
+        sql: str = f'CREATE TABLE {table_name} ('
         for column in columns:
             sql += f'{column} {columns[column]}, '
         sql = sql[:-2] + ')'
@@ -60,8 +61,11 @@ class MySQL():
         except Exception as e:
             print('Erro ao criar tabela: ', e)
             self.connection.rollback()
+            success = False
 
-    def insert_data(self, table: str, data: dict) -> None:
+        return success
+
+    def insert_data(self, table: str, data: dict) -> bool:
         '''
         Insert data in the database table
 
@@ -69,7 +73,8 @@ class MySQL():
             table (str): table name
             data (dict): data to insert
         '''
-        sql = f"INSERT INTO {table} ({','.join(list(data.keys()))}) VALUES ({'%s,' * len(list(data.keys()))}"
+        success: bool = True
+        sql: str = f"INSERT INTO {table} ({','.join(list(data.keys()))}) VALUES ({'%s,' * len(list(data.keys()))}"
         sql = sql[:-1] + ')'
 
         try:
@@ -80,6 +85,9 @@ class MySQL():
         except Exception as e:  # Other errors
             print('Erro ao inserir dados: ', e)
             self.connection.rollback()
+            success = False
+
+        return success
 
     def get_data(self, table: str, fields: str = "*", filter: str = "", order: str = "") -> tuple:
         '''
@@ -107,7 +115,7 @@ class MySQL():
             return self.cursor.fetchall()
         except Exception as e:
             print('Erro ao buscar dados: ', e)
-            return ()
+            return ('ERROR',)
 
     def close_connection(self) -> None:
         '''
