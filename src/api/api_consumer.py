@@ -23,4 +23,14 @@ class Consumer():
             dict: data from endpoint
         '''
         response = requests.get(self.endpoint + filter)
-        return response.json()
+        try:
+            json = response.json()
+        except Exception as e:
+            json = {'error': e}
+
+        return json
+
+
+if __name__ == '__main__':
+    test = Consumer('https://brapi.dev/api/availabl/')
+    test.get_data()
