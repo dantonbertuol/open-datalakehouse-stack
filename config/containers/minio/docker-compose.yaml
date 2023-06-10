@@ -7,7 +7,7 @@ services:
     command: 
       server /data --console-address ":9090"
     volumes: 
-      - ../data/minio:/data
+      - ../../../data/minio:/data
     ports:
       - 9000:9000
       - 9090:9090
