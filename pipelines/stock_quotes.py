@@ -1,15 +1,18 @@
-from src.database.mysql import MySQL
-from src.utils.logs import Logs
-from elt.extract.brapi_api import BrapiAPI
 from datetime import datetime
-# import sys
+import sys
 from pathlib import Path
+from pyspark.sql.types import StructType, StructField, StringType, FloatType
 
 DATA_LOG: str = datetime.now().strftime('%d-%m-%Y')
 PROJECT_PATH = Path(__file__).absolute().parent.parent
 LOG_PATH = f'{PROJECT_PATH}/logs/stocks_pipeline/log_' + DATA_LOG + '.txt'
 
-# sys.path.insert(1, str(PROJECT_PATH))
+sys.path.insert(1, str(PROJECT_PATH))
+
+from src.datalake.s3connect import S3Connect  # noqa: E402
+from src.database.mysql import MySQL  # noqa: E402
+from src.utils.logs import Logs  # noqa: E402
+from elt.extract.brapi_api import BrapiAPI  # noqa: E402
 
 
 class StockQuotesPipeline(Logs):
@@ -18,6 +21,9 @@ class StockQuotesPipeline(Logs):
     '''
 
     def __init__(self) -> None:
+        '''
+        Initialize StockQuotesPipeline class
+        '''
         self.logs = Logs(LOG_PATH)
 
     def create_table_stock_struct(self) -> None:
@@ -115,13 +121,10 @@ class StockQuotesPipeline(Logs):
             dict: dict data
         '''
         data: dict = {}
-        success: bool = False
-        database = MySQL(
-            host='localhost',
-            user='root',
-            password='BrapiDev',
-            database='stock_quotes'
-        )
+
+        s3 = S3Connect('TESTE')
+
+        first: bool = True
 
         # Available Endpoint
         if 'available' in endpoint:
@@ -129,56 +132,94 @@ class StockQuotesPipeline(Logs):
             data = brapi_api.get_data()
             if data.get('error') is None:
                 stocks = data.get('stocks')
-
-                for stock in stocks:
-                    success = database.insert_data('stock', {'symbol': stock})
-                    if not success:
-                        self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Stock {stock} not inserted')
+                s3.insert_data(stocks, 'landing', 'stocks/available_stocks', 'overwrite')
             else:
                 self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                                 f'Error consuming endpoint {endpoint}')
 
         # Quote Endpoint
         elif 'quote' in endpoint:
-            stocks = database.get_data('stock', 'symbol')
-            stocks = [stock[0] for stock in stocks]
+            stocks = s3.get_data('landing', 'stocks/available_stocks', 'csv').collect()
+            stocks = [stock.value for stock in stocks]
+
+            quote_schema = self.get_schema('quotes')
 
             # Somente busca cotação se retornou algum stock
             if len(stocks) > 0:
                 quotes = BrapiAPI(endpoint)
 
-                # Busca 200 por vez por limitação da API
-                for i in range(0, len(stocks), 200):
-                    quotes_data: dict = quotes.get_data(",".join(stocks[i:i+200]))
-                    if quotes_data.get('error') is None:
-                        for result in quotes_data.get('results'):
-                            if result.get('error'):
-                                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
-                                                f'Error stock quote {result.get("symbol")} > {result.get("message")}')
-                                success = False
-                                continue
-
-                            if result.get('regularMarketTime') is not None:
-                                result['regularMarketTime'] = datetime.strptime(
-                                    result.get('regularMarketTime'), '%Y-%m-%dT%H:%M:%S.%fZ')
-
-                            success = database.insert_data('stock_quotes', result)
-                            if not success:
-                                self.logs.write(
-                                    f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Stock Quote {result.get("symbol")} '
-                                    'not inserted')
+                quotes_data: dict = quotes.get_data(",".join(stocks))
+                if quotes_data.get('error') is None:
+                    result = quotes_data.get('results')
+                    for stock in result:  # type: ignore
+                        for key, value in stock.items():
+                            if type(value) == int:
+                                try:
+                                    stock[key] = float(value)
+                                except Exception:
+                                    pass
+                    if first:
+                        s3.insert_data(quotes_data.get('results'), 'landing',
+                                       'stocks/stock_quotes', 'overwrite', quote_schema)
+                        first = False
                     else:
-                        self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
-                                        f'Error consuming endpoint {endpoint}')
+                        s3.insert_data(quotes_data.get('results'), 'landing',
+                                       'stocks/stock_quotes', 'append', quote_schema)
+                else:
+                    self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                                    f'Error consuming endpoint {endpoint}')
             else:
                 self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: No stock to search')
 
-        database.close_connection()
+    def get_schema(self, table: str) -> StructType:
+        '''
+        Get schema from table
+
+        Args:
+            table (str): table name
+
+        Returns:
+            StructType: schema from table
+        '''
+        struct: StructType = StructType([])
+
+        if table == 'quotes':
+            struct = StructType([
+                StructField("symbol", StringType(), True),
+                StructField("shortName", StringType(), True),
+                StructField("longName", StringType(), True),
+                StructField("currency", StringType(), True),
+                StructField("regularMarketPrice", FloatType(), True),
+                StructField("regularMarketDayHigh", FloatType(), True),
+                StructField("regularMarketDayLow", FloatType(), True),
+                StructField("regularMarketDayRange", StringType(), True),
+                StructField("regularMarketChange", FloatType(), True),
+                StructField("regularMarketChangePercent", FloatType(), True),
+                StructField("regularMarketTime", StringType(), True),
+                StructField("marketCap", FloatType(), True),
+                StructField("regularMarketVolume", FloatType(), True),
+                StructField("regularMarketPreviousClose", FloatType(), True),
+                StructField("regularMarketOpen", FloatType(), True),
+                StructField("averageDailyVolume10Day", FloatType(), True),
+                StructField("averageDailyVolume3Month", FloatType(), True),
+                StructField("fiftyTwoWeekLowChange", FloatType(), True),
+                StructField("fiftyTwoWeekLowChangePercent", FloatType(), True),
+                StructField("fiftyTwoWeekRange", StringType(), True),
+                StructField("fiftyTwoWeekHighChange", FloatType(), True),
+                StructField("fiftyTwoWeekHighChangePercent", FloatType(), True),
+                StructField("fiftyTwoWeekLow", FloatType(), True),
+                StructField("fiftyTwoWeekHigh", FloatType(), True),
+                StructField("twoHundredDayAverage", FloatType(), True),
+                StructField("twoHundredDayAverageChange", FloatType(), True),
+                StructField("twoHundredDayAverageChangePercent", FloatType(), True)
+            ])
+
+        return struct
 
 
 if __name__ == '__main__':
     pipeline = StockQuotesPipeline()
-    pipeline.create_table_stock_struct()
-    pipeline.create_table_stock_quotes_struct()
+    # pipeline.create_table_stock_struct()
+    # pipeline.create_table_stock_quotes_struct()
     pipeline.extract_api_data('https://brapi.dev/api/available/')
     pipeline.extract_api_data('https://brapi.dev/api/quote/')

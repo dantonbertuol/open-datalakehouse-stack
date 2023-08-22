@@ -12,12 +12,30 @@ sys.path.insert(1, str(PROJECT_PATH))
 
 
 class BrapiAPI():
+    '''
+    Brapi API consumer
+    '''
     def __init__(self, endpoint: str) -> None:
+        '''
+        Initialize BrapiAPI class
+
+        Args:
+            endpoint (str): API endpoint
+        '''
         self.endpoint = endpoint
         self.consumer = Consumer(self.endpoint)
 
-    def get_data(self) -> dict:
-        data: dict = self.consumer.get_data()
+    def get_data(self, filter: str = "") -> dict:
+        '''
+        Get data from API
+
+        Args:
+            filter (str, optional): Filter get. Defaults to "".
+
+        Returns:
+            dict: Data from API
+        '''
+        data: dict = self.consumer.get_data(filter)
         return data
 
 
