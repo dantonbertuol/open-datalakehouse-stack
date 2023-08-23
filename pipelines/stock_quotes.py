@@ -1,15 +1,15 @@
-from src.database.mysql import MySQL
-from src.utils.logs import Logs
-from elt.extract.brapi_api import BrapiAPI
 from datetime import datetime
-# import sys
+import sys
 from pathlib import Path
 
 DATA_LOG: str = datetime.now().strftime('%d-%m-%Y')
 PROJECT_PATH = Path(__file__).absolute().parent.parent
 LOG_PATH = f'{PROJECT_PATH}/logs/stocks_pipeline/log_' + DATA_LOG + '.txt'
 
-# sys.path.insert(1, str(PROJECT_PATH))
+sys.path.insert(1, str(PROJECT_PATH))  # insert path to run in windows
+from elt.extract.brapi_api import BrapiAPI  # noqa: E402
+from src.utils.logs import Logs  # noqa: E402
+from src.database.mysql import MySQL  # noqa: E402
 
 
 class StockQuotesPipeline(Logs):
@@ -18,6 +18,9 @@ class StockQuotesPipeline(Logs):
     '''
 
     def __init__(self) -> None:
+        '''
+        Constructor method
+        '''
         self.logs = Logs(LOG_PATH)
 
     def create_table_stock_struct(self) -> None:
@@ -78,7 +81,7 @@ class StockQuotesPipeline(Logs):
                     "regularMarketDayRange": "VARCHAR(50)",
                     "regularMarketChange": "FLOAT",
                     "regularMarketChangePercent": "FLOAT",
-                    "regularMarketTime": "TIMESTAMP",
+                    "regularMarketTime": "VARCHAR(50)",
                     "marketCap": "FLOAT",
                     "regularMarketVolume": "FLOAT",
                     "regularMarketPreviousClose": "FLOAT",
@@ -95,6 +98,10 @@ class StockQuotesPipeline(Logs):
                     "twoHundredDayAverage": "FLOAT",
                     "twoHundredDayAverageChange": "FLOAT",
                     "twoHundredDayAverageChangePercent": "FLOAT",
+                    "priceEarnings": "FLOAT",
+                    "earningsPerShare": "FLOAT",
+                    "logourl": "VARCHAR(250)",
+                    "updatedAt": "VARCHAR(50)",
                     'primary key': '(id)',
                     'unique': '(symbol,regularMarketTime)'
                 }
@@ -130,7 +137,7 @@ class StockQuotesPipeline(Logs):
             if data.get('error') is None:
                 stocks = data.get('stocks')
 
-                for stock in stocks:
+                for stock in stocks:  # type: ignore
                     success = database.insert_data('stock', {'symbol': stock})
                     if not success:
                         self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Stock {stock} not inserted')
@@ -146,30 +153,24 @@ class StockQuotesPipeline(Logs):
             # Somente busca cotação se retornou algum stock
             if len(stocks) > 0:
                 quotes = BrapiAPI(endpoint)
+                quotes_data: dict = quotes.get_data(",".join(stocks))
 
-                # Busca 200 por vez por limitação da API
-                for i in range(0, len(stocks), 200):
-                    quotes_data: dict = quotes.get_data(",".join(stocks[i:i+200]))
-                    if quotes_data.get('error') is None:
-                        for result in quotes_data.get('results'):
-                            if result.get('error'):
-                                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
-                                                f'Error stock quote {result.get("symbol")} > {result.get("message")}')
-                                success = False
-                                continue
+                if quotes_data.get('error') is None:
+                    for result in quotes_data.get('results'):  # type: ignore
+                        if result.get('error'):
+                            self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                                            f'Error stock quote {result.get("symbol")} > {result.get("message")}')
+                            success = False
+                            continue
 
-                            if result.get('regularMarketTime') is not None:
-                                result['regularMarketTime'] = datetime.strptime(
-                                    result.get('regularMarketTime'), '%Y-%m-%dT%H:%M:%S.%fZ')
-
-                            success = database.insert_data('stock_quotes', result)
-                            if not success:
-                                self.logs.write(
-                                    f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Stock Quote {result.get("symbol")} '
-                                    'not inserted')
-                    else:
-                        self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
-                                        f'Error consuming endpoint {endpoint}')
+                        success = database.insert_data('stock_quotes', result)
+                        if not success:
+                            self.logs.write(
+                                f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                                f'Stock Quote {result.get("symbol")} not inserted')
+                else:
+                    self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                                    f'Error consuming endpoint {endpoint}')
             else:
                 self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: No stock to search')
 
