@@ -10,6 +10,7 @@ sys.path.insert(1, str(PROJECT_PATH))  # insert path to run in windows
 from elt.extract.brapi_api import BrapiAPI  # noqa: E402
 from src.utils.logs import Logs  # noqa: E402
 from src.database.mysql import MySQL  # noqa: E402
+from elt.transform.clean_data import CleanData  # noqa: E402
 
 
 class StockQuotesPipeline(Logs):
@@ -176,10 +177,36 @@ class StockQuotesPipeline(Logs):
 
         database.close_connection()
 
+    def clean_data(self, env: str, path: list, bucket_from: list, bucket_to: list, fields: list) -> None:
+        '''
+        Method to clean data
+
+        Args:
+            env (str): environment
+            path (list): list of paths to clean
+            bucket_from (list): list of buckets from get data to clean
+            bucket_to (list): list of buckets to write data cleaned
+            fields (list): list of fields to select
+        '''
+        clean_data = CleanData(env)
+
+        for rpath, rbucket_from, rbucket_to, rfields in zip(path, bucket_from, bucket_to, fields):
+            clean_data.clean_table(rpath, rbucket_from, rbucket_to, rfields)
+
+        clean_data.close_s3_connection()
+
 
 if __name__ == '__main__':
     pipeline = StockQuotesPipeline()
+
     pipeline.create_table_stock_struct()
     pipeline.create_table_stock_quotes_struct()
     pipeline.extract_api_data('https://brapi.dev/api/available/')
     pipeline.extract_api_data('https://brapi.dev/api/quote/')
+
+    tables_to_clean = ['stocks/stock', 'stocks/stock_quotes']
+    buckets_from = ['landing', 'landing']
+    buckets_to = ['processing', 'processing']
+    fields = [['symbol'], ['symbol', 'longName', 'shortName', 'currency', 'marketCap',
+              'regularMarketPrice', 'regularMarketVolume', 'regularMarketTime']]
+    pipeline.clean_data('TESTE', tables_to_clean, buckets_from, buckets_to, fields)
