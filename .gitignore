@@ -2,3 +2,4 @@ data/*
 config/containers/airbyte/
 env/
 __pycache__/
+logs/stocks_pipeline/*
