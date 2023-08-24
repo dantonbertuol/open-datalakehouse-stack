@@ -11,10 +11,28 @@ from src.datalake.s3connect import S3Connect  # noqa: E402
 
 
 class CleanData():
+    '''
+    Class to clean data
+    '''
     def __init__(self, env: str) -> None:
+        '''
+        Initialize CleanData class
+
+        Args:
+            env (str): Environment
+        '''
         self.s3 = S3Connect(env)
 
     def clean_table(self, path: str, bucket_from: str, bucket_to: str, fields: list):
+        '''
+        Function to clean table
+
+        Args:
+            path (str): path from file
+            bucket_from (str): bucket from file
+            bucket_to (str): bucket to write new file
+            fields (list): fields to select
+        '''
         try:
             df = self.s3.get_data(bucket_from, path, 'csv')
 
@@ -25,6 +43,9 @@ class CleanData():
             print(f"Error to clean table {path}: {e}")
 
     def close_s3_connection(self):
+        '''
+        Function to close S3 connection
+        '''
         self.s3.close_spark_session()
 
 
