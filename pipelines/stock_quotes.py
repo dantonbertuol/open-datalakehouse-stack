@@ -11,6 +11,8 @@ from elt.extract.brapi_api import BrapiAPI  # noqa: E402
 from src.utils.logs import Logs  # noqa: E402
 from src.database.mysql import MySQL  # noqa: E402
 from elt.transform.clean_data import CleanData  # noqa: E402
+from elt.transform.convert_to_delta import ConvertDeltaTables  # noqa: E402
+from elt.transform.enrich_delta import EnrichDelta  # noqa: E402
 
 
 class StockQuotesPipeline(Logs):
@@ -195,6 +197,29 @@ class StockQuotesPipeline(Logs):
 
         clean_data.close_s3_connection()
 
+    def convert_to_delta(self, env: str, path: list, bucket_from: list, bucket_to: list) -> None:
+        '''
+        Method to convert to delta tables
+
+        Args:
+            env (str): environment
+            path (list): list of paths to convert
+            bucket_from (list): list of buckets from get data to convert
+            bucket_to (list): list of buckets to write data converted
+        '''
+        convert_delta = ConvertDeltaTables(env)
+
+        for rpath, rbucket_from, rbucket_to in zip(path, bucket_from, bucket_to):
+            convert_delta.convert_table(rpath, rbucket_from, rbucket_to)
+
+        convert_delta.close_s3_connection()
+
+    def enrich_delta(self, env: str, path_from: list, bucket_from: list, table_from: list, bucket_to: str,
+                     path_to: str, table_to: str):
+        enrich_delta = EnrichDelta(env)
+
+        enrich_delta.enrich_table(path_from, bucket_from, table_from, bucket_to, path_to, table_to)
+
 
 if __name__ == '__main__':
     pipeline = StockQuotesPipeline()
@@ -210,3 +235,16 @@ if __name__ == '__main__':
     fields = [['symbol'], ['symbol', 'longName', 'shortName', 'currency', 'marketCap',
               'regularMarketPrice', 'regularMarketVolume', 'regularMarketTime']]
     pipeline.clean_data('TESTE', tables_to_clean, buckets_from, buckets_to, fields)
+
+    tables_to_convet = ['stocks/stock', 'stocks/stock_quotes']
+    buckets_from = ['processing', 'processing']
+    buckets_to = ['lakehouse', 'lakehouse']
+    pipeline.convert_to_delta('TESTE', tables_to_convet, buckets_from, buckets_to)
+
+    tables_to_enrich = ['stock', 'stock_quotes']
+    buckets_from = ['lakehouse', 'lakehouse']
+    path_from = ['bronze/stocks/stock', 'bronze/stocks/stock_quotes']
+    bucket_to = 'lakehouse'
+    path_to = 'silver/stocks/stocks_quotes/'
+    table_to = 'stocks_quotes'
+    pipeline.enrich_delta('TESTE', path_from, buckets_from, tables_to_enrich, bucket_to, path_to, table_to)
