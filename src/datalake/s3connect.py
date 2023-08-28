@@ -57,7 +57,7 @@ class S3Connect():
 
         return spark
 
-    def insert_data(self, df, bucket_name: str, path: str, mode: str, file_type: str, schema=None):
+    def insert_data(self, df, bucket_name: str, path: str, mode: str, file_type: str, schema=None, table: str = None):
         '''
         Insert data in S3
 
@@ -77,12 +77,15 @@ class S3Connect():
 
             df.write.option("header", "true").mode(mode).option(
                 "compression", "gzip").csv(f"s3a://{bucket_name}/{path}")
-
-        if file_type == 'parquet':
+        elif file_type == 'parquet':
             df.write.format("parquet").mode("overwrite").save(
                 f"s3a://{bucket_name}/{path}.parquet")
+        elif file_type == 'delta':
+            df.write.format("delta").mode("overwrite"). \
+                option("mergeSchema", "true").option("delta.columnMapping.mode", "name"). \
+                option("path", f"s3a://{bucket_name}/{path}").saveAsTable(table)
 
-    def get_data(self, bucket_name: str, path: str, format: str):
+    def get_data(self, bucket_name: str = '', path: str = '', file_type: str = '', sql: str = ''):
         '''
         Get data from S3
 
@@ -94,9 +97,15 @@ class S3Connect():
         Returns:
             dataframe: dataframe from S3
         '''
-        if format == 'csv':
+        if file_type == 'csv':
             return self.spark.read.format("csv").option("header", "true").option("inferSchema", "true").load(
                 f"s3a://{bucket_name}/{path}")
+        elif file_type == 'parquet':
+            return self.spark.read.parquet(f"s3a://{bucket_name}/{path}")
+        elif file_type == 'delta':
+            return self.spark.read.format("delta").load(f"s3a://{bucket_name}/{path}")
+        elif file_type == 'sql':
+            return self.spark.sql(sql)
 
     def close_spark_session(self):
         '''
