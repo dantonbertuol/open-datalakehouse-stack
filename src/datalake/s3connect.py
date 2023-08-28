@@ -68,6 +68,7 @@ class S3Connect():
             mode (str): mode to insert
             fomart (str): type to insert
             schema (optional): data schema. Defaults to None.
+            table (str, optional): table name. Defaults to None.
         '''
         if file_type == 'csv':
             if type(df) == list and path == 'stocks/available_stocks':
@@ -90,9 +91,10 @@ class S3Connect():
         Get data from S3
 
         Args:
-            bucket_name (str): bucket name
-            path (str): path to get
-            type (str): type to get
+            bucket_name (str, optional): bucket name. Defaults to ''.
+            path (str, optional): path. Defaults to ''.
+            file_type (str, optional): file type. Defaults to ''.
+            sql (str, optional): sql. Defaults to ''.
 
         Returns:
             dataframe: dataframe from S3

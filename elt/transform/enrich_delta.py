@@ -30,10 +30,12 @@ class EnrichDelta():
         Function to enrich table
 
         Args:
-            path (str): path from file
-            bucket_from (str): bucket from file
+            path_from (list): list of paths from files
+            bucket_from (list): list of buckets from files
+            table_from (list): list of tables from files
             bucket_to (str): bucket to write new file
-            fields (list): fields to select
+            path_to (str): path to write new file
+            table_to (str): table to write new file
         '''
         try:
             for rpath, rbucket_from, rtable in zip(path_from, bucket_from, table_from):

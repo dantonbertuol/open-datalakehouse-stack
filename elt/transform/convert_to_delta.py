@@ -21,6 +21,14 @@ class ConvertDeltaTables():
         self.s3 = S3Connect(env)
 
     def convert_table(self, path: str, bucket_from: str, bucket_to: str):
+        '''
+        Function to convert file to delta table
+
+        Args:
+            path (str): path from file
+            bucket_from (str): bucket from file
+            bucket_to (str): bucket to write new file
+        '''
         df = self.s3.get_data(bucket_from, f'{path}.parquet', 'parquet')
 
         df.write.mode("overwrite").format("delta").option(
