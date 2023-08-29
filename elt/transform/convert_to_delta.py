@@ -20,7 +20,7 @@ class ConvertDeltaTables():
         '''
         self.s3 = S3Connect(env)
 
-    def convert_table(self, path: str, bucket_from: str, bucket_to: str):
+    def convert_table(self, path: str, bucket_from: str, bucket_to: str) -> list:
         '''
         Function to convert file to delta table
 
@@ -29,10 +29,17 @@ class ConvertDeltaTables():
             bucket_from (str): bucket from file
             bucket_to (str): bucket to write new file
         '''
-        df = self.s3.get_data(bucket_from, f'{path}.parquet', 'parquet')
+        result: list = [True, '']
 
-        df.write.mode("overwrite").format("delta").option(
-            "mergeSchema", "true").save(f"s3a://{bucket_to}/bronze/{path}/")
+        try:
+            df = self.s3.get_data(bucket_from, f'{path}.parquet', 'parquet')
+
+            df.write.mode("overwrite").format("delta").option(
+                "mergeSchema", "true").save(f"s3a://{bucket_to}/bronze/{path}/")
+        except Exception as e:
+            result = [False, e]
+
+        return result
 
     def close_s3_connection(self):
         '''

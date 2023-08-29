@@ -14,6 +14,7 @@ class CleanData():
     '''
     Class to clean data
     '''
+
     def __init__(self, env: str) -> None:
         '''
         Initialize CleanData class
@@ -23,7 +24,7 @@ class CleanData():
         '''
         self.s3 = S3Connect(env)
 
-    def clean_table(self, path: str, bucket_from: str, bucket_to: str, fields: list):
+    def clean_table(self, path: str, bucket_from: str, bucket_to: str, fields: list) -> list:
         '''
         Function to clean table
 
@@ -33,6 +34,8 @@ class CleanData():
             bucket_to (str): bucket to write new file
             fields (list): fields to select
         '''
+        result: list = [True, '']
+
         try:
             df = self.s3.get_data(bucket_from, path, 'csv')
 
@@ -40,7 +43,9 @@ class CleanData():
 
             self.s3.insert_data(clean_df, bucket_to, path, 'overwrite', 'parquet')
         except Exception as e:
-            print(f"Error to clean table {path}: {e}")
+            result = [False, e]
+
+        return result
 
     def close_s3_connection(self):
         '''

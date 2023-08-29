@@ -37,10 +37,10 @@ class StockQuotesPipeline(Logs):
             database='stock_quotes'
         )
 
-        success: bool = False
+        result: list = [True, '']
 
         if not database.verify_table_exists('stock'):
-            success = database.create_table(
+            result = database.create_table(
                 'stock',
                 {
                     'id': 'INT AUTO_INCREMENT',
@@ -49,10 +49,11 @@ class StockQuotesPipeline(Logs):
                     'unique': '(symbol)'
                 }
             )
-            if success:
+            if result[0]:
                 self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock created')
             else:
-                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock not created')
+                self.logs.write(
+                    f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock not created. Error: {result[1]}')
 
         database.close_connection()
 
@@ -67,10 +68,10 @@ class StockQuotesPipeline(Logs):
             database='stock_quotes'
         )
 
-        success: bool = False
+        result: list = [True, '']
 
         if not database.verify_table_exists('stock_quotes'):
-            success = database.create_table(
+            result = database.create_table(
                 'stock_quotes',
                 {
                     "id": "INT AUTO_INCREMENT",
@@ -109,10 +110,12 @@ class StockQuotesPipeline(Logs):
                     'unique': '(symbol,regularMarketTime)'
                 }
             )
-            if success:
+            if result[0]:
                 self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock_quotes created')
             else:
-                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock_quotes not created')
+                self.logs.write(
+                    f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock_quotes not created.'
+                    f' Error: {result[1]}')
 
     def extract_api_data(self, endpoint: str) -> None:
         '''
@@ -125,7 +128,7 @@ class StockQuotesPipeline(Logs):
             dict: dict data
         '''
         data: dict = {}
-        success: bool = False
+        result_: list = [True, '']
         database = MySQL(
             host='localhost',
             user='root',
@@ -141,9 +144,11 @@ class StockQuotesPipeline(Logs):
                 stocks = data.get('stocks')
 
                 for stock in stocks:  # type: ignore
-                    success = database.insert_data('stock', {'symbol': stock})
-                    if not success:
-                        self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Stock {stock} not inserted')
+                    result_ = database.insert_data('stock', {'symbol': stock})
+                    if not result_[0]:
+                        self.logs.write(
+                            f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Stock {stock} not inserted.'
+                            f' Error: {result_[1]}')
             else:
                 self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                                 f'Error consuming endpoint {endpoint}')
@@ -163,17 +168,17 @@ class StockQuotesPipeline(Logs):
                         if result.get('error'):
                             self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                                             f'Error stock quote {result.get("symbol")} > {result.get("message")}')
-                            success = False
+                            result_ = [False, '']
                             continue
 
-                        success = database.insert_data('stock_quotes', result)
-                        if not success:
+                        result_ = database.insert_data('stock_quotes', result)
+                        if not result_[0]:
                             self.logs.write(
                                 f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
-                                f'Stock Quote {result.get("symbol")} not inserted')
+                                f'Stock Quote {result.get("symbol")} not inserted. Error: {result_[1]}')
                 else:
                     self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
-                                    f'Error consuming endpoint {endpoint}')
+                                    f'Error consuming endpoint {endpoint} -> {quotes_data.get("error")}')
             else:
                 self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: No stock to search')
 
@@ -190,10 +195,15 @@ class StockQuotesPipeline(Logs):
             bucket_to (list): list of buckets to write data cleaned
             fields (list): list of fields to select
         '''
+        result: list = [True, '']
+
         clean_data = CleanData(env)
 
         for rpath, rbucket_from, rbucket_to, rfields in zip(path, bucket_from, bucket_to, fields):
-            clean_data.clean_table(rpath, rbucket_from, rbucket_to, rfields)
+            result = clean_data.clean_table(rpath, rbucket_from, rbucket_to, rfields)
+            if not result[0]:
+                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                                f'Error cleaning table {rpath}. Error: {result[1]}')
 
         clean_data.close_s3_connection()
 
@@ -207,18 +217,41 @@ class StockQuotesPipeline(Logs):
             bucket_from (list): list of buckets from get data to convert
             bucket_to (list): list of buckets to write data converted
         '''
+        result: list = [True, '']
+
         convert_delta = ConvertDeltaTables(env)
 
         for rpath, rbucket_from, rbucket_to in zip(path, bucket_from, bucket_to):
-            convert_delta.convert_table(rpath, rbucket_from, rbucket_to)
+            result = convert_delta.convert_table(rpath, rbucket_from, rbucket_to)
+            if not result[0]:
+                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                                f'Error converting table {rpath}. Error: {result[1]}')
 
         convert_delta.close_s3_connection()
 
     def enrich_delta(self, env: str, path_from: list, bucket_from: list, table_from: list, bucket_to: str,
-                     path_to: str, table_to: str):
+                     path_to: str, table_to: str) -> None:
+        '''
+        Method to enrich delta table
+
+        Args:
+            env (str): environment
+            path_from (list): path from table
+            bucket_from (list): bucket from table
+            table_from (list): table from table
+            bucket_to (str): bucket to insert new table
+            path_to (str): path to insert new table
+            table_to (str): table to insert new table
+        '''
+        result: list = [True, '']
+
         enrich_delta = EnrichDelta(env)
 
-        enrich_delta.enrich_table(path_from, bucket_from, table_from, bucket_to, path_to, table_to)
+        result = enrich_delta.enrich_table(path_from, bucket_from, table_from, bucket_to, path_to, table_to)
+
+        if not result[0]:
+            self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                            f'Error enriching table {table_to}. Error: {result[1]}')
 
 
 if __name__ == '__main__':

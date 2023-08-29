@@ -25,7 +25,7 @@ class EnrichDelta():
         self.s3 = S3Connect(env)
 
     def enrich_table(self, path_from: list, bucket_from: list, table_from: list, bucket_to: str,
-                     path_to: str, table_to: str):
+                     path_to: str, table_to: str) -> list:
         '''
         Function to enrich table
 
@@ -37,6 +37,8 @@ class EnrichDelta():
             path_to (str): path to write new file
             table_to (str): table to write new file
         '''
+        result: list = [True, '']
+
         try:
             for rpath, rbucket_from, rtable in zip(path_from, bucket_from, table_from):
                 df = self.s3.get_data(rbucket_from, rpath, 'delta')
@@ -51,7 +53,9 @@ class EnrichDelta():
 
             self.s3.insert_data(df_final, bucket_to, path_to, 'overwrite', 'delta', None, table_to)
         except Exception as e:
-            print(f"Error to enrich table {table_to}: {e}")
+            result = [False, e]
+
+        return result
 
     def close_s3_connection(self):
         '''

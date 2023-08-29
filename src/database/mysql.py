@@ -41,7 +41,7 @@ class MySQL():
             return True
         return False
 
-    def create_table(self, table_name: str, columns: dict) -> bool:
+    def create_table(self, table_name: str, columns: dict) -> list:
         '''
         Create a table in the database
 
@@ -49,7 +49,8 @@ class MySQL():
             table_name (str): table name
             columns (dict): columns of the table
         '''
-        success: bool = True
+        result: list = [True, '']
+
         sql: str = f'CREATE TABLE {table_name} ('
         for column in columns:
             sql += f'{column} {columns[column]}, '
@@ -59,13 +60,12 @@ class MySQL():
             self.cursor.execute(sql)
             self.connection.commit()
         except Exception as e:
-            print('Erro ao criar tabela: ', e)
             self.connection.rollback()
-            success = False
+            result = [False, e]
 
-        return success
+        return result
 
-    def insert_data(self, table: str, data: dict) -> bool:
+    def insert_data(self, table: str, data: dict) -> list:
         '''
         Insert data in the database table
 
@@ -73,7 +73,8 @@ class MySQL():
             table (str): table name
             data (dict): data to insert
         '''
-        success: bool = True
+        result: list = [True, '']
+
         sql: str = f"INSERT INTO {table} ({','.join(list(data.keys()))}) VALUES ({'%s,' * len(list(data.keys()))}"
         sql = sql[:-1] + ')'
 
@@ -83,11 +84,10 @@ class MySQL():
         except pymysql.err.IntegrityError:  # Ignore duplicate data
             pass
         except Exception as e:  # Other errors
-            print('Erro ao inserir dados: ', e)
             self.connection.rollback()
-            success = False
+            result = [False, e]
 
-        return success
+        return result
 
     def get_data(self, table: str, fields: str = "*", filter: str = "", order: str = "") -> tuple:
         '''
