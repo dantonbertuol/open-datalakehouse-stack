@@ -105,10 +105,10 @@ class MySQL():
         sql = f"SELECT {fields} FROM {table} "
 
         if filter != "":
-            sql += 'WHERE {filter}'
+            sql += f'WHERE {filter}'
 
         if order != "":
-            sql += 'ORDER BY {order}'
+            sql += f'ORDER BY {order}'
 
         try:
             self.cursor.execute(sql)
