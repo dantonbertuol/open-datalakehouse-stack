@@ -161,24 +161,27 @@ class StockQuotesPipeline(Logs):
             # Somente busca cotação se retornou algum stock
             if len(stocks) > 0:
                 quotes = BrapiAPI(endpoint)
-                quotes_data: dict = quotes.get_data(",".join(stocks))
 
-                if quotes_data.get('error') is None:
-                    for result in quotes_data.get('results'):  # type: ignore
-                        if result.get('error'):
-                            self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
-                                            f'Error stock quote {result.get("symbol")} > {result.get("message")}')
-                            result_ = [False, '']
-                            continue
+                # Busca 200 por vez por limitação da API
+                for i in range(0, len(stocks), 200):
+                    quotes_data: dict = quotes.get_data(",".join(stocks[i:i+200]))
 
-                        result_ = database.insert_data('stock_quotes', result)
-                        if not result_[0]:
-                            self.logs.write(
-                                f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
-                                f'Stock Quote {result.get("symbol")} not inserted. Error: {result_[1]}')
-                else:
-                    self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
-                                    f'Error consuming endpoint {endpoint} -> {quotes_data.get("error")}')
+                    if quotes_data.get('error') is None:
+                        for result in quotes_data.get('results'):  # type: ignore
+                            if result.get('error'):
+                                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                                                f'Error stock quote {result.get("symbol")} > {result.get("message")}')
+                                result_ = [False, '']
+                                continue
+
+                            result_ = database.insert_data('stock_quotes', result)
+                            if not result_[0]:
+                                self.logs.write(
+                                    f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                                    f'Stock Quote {result.get("symbol")} not inserted. Error: {result_[1]}')
+                    else:
+                        self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                                        f'Error consuming endpoint {endpoint} -> {quotes_data.get("error")}')
             else:
                 self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: No stock to search')
 
