@@ -26,7 +26,7 @@ class StockQuotesPipeline(Logs):
         '''
         self.logs = Logs(LOG_PATH)
 
-    def create_table_stock_struct(self) -> None:
+    def create_tables_struct(self) -> None:
         '''
         Create table stock structure
         '''
@@ -40,82 +40,41 @@ class StockQuotesPipeline(Logs):
         result: list = [True, '']
 
         if not database.verify_table_exists('stock'):
-            result = database.create_table(
-                'stock',
-                {
-                    'id': 'INT AUTO_INCREMENT',
-                    'symbol': 'VARCHAR(10) NOT NULL',
-                    'primary key': '(id)',
-                    'unique': '(symbol)'
-                }
-            )
+            result = database.create_table('sql/create_tables/stock.sql')
             if result[0]:
                 self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock created')
             else:
                 self.logs.write(
                     f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock not created. Error: {result[1]}')
 
-        database.close_connection()
-
-    def create_table_stock_quotes_struct(self) -> None:
-        '''
-        Create table stock quotes structure
-        '''
-        database = MySQL(
-            host='localhost',
-            user='root',
-            password='BrapiDev',
-            database='stock_quotes'
-        )
-
-        result: list = [True, '']
-
         if not database.verify_table_exists('stock_quotes'):
-            result = database.create_table(
-                'stock_quotes',
-                {
-                    "id": "INT AUTO_INCREMENT",
-                    "symbol": "VARCHAR(10) NOT NULL",
-                    "shortName": "VARCHAR(100)",
-                    "longName": "VARCHAR(100)",
-                    "currency": "VARCHAR(10)",
-                    "regularMarketPrice": "FLOAT",
-                    "regularMarketDayHigh": "FLOAT",
-                    "regularMarketDayLow": "FLOAT",
-                    "regularMarketDayRange": "VARCHAR(50)",
-                    "regularMarketChange": "FLOAT",
-                    "regularMarketChangePercent": "FLOAT",
-                    "regularMarketTime": "VARCHAR(50)",
-                    "marketCap": "FLOAT",
-                    "regularMarketVolume": "FLOAT",
-                    "regularMarketPreviousClose": "FLOAT",
-                    "regularMarketOpen": "FLOAT",
-                    "averageDailyVolume10Day": "FLOAT",
-                    "averageDailyVolume3Month": "FLOAT",
-                    "fiftyTwoWeekLowChange": "FLOAT",
-                    "fiftyTwoWeekLowChangePercent": "FLOAT",
-                    "fiftyTwoWeekRange": "VARCHAR(50)",
-                    "fiftyTwoWeekHighChange": "FLOAT",
-                    "fiftyTwoWeekHighChangePercent": "FLOAT",
-                    "fiftyTwoWeekLow": "FLOAT",
-                    "fiftyTwoWeekHigh": "FLOAT",
-                    "twoHundredDayAverage": "FLOAT",
-                    "twoHundredDayAverageChange": "FLOAT",
-                    "twoHundredDayAverageChangePercent": "FLOAT",
-                    "priceEarnings": "FLOAT",
-                    "earningsPerShare": "FLOAT",
-                    "logourl": "VARCHAR(250)",
-                    "updatedAt": "VARCHAR(50)",
-                    'primary key': '(id)',
-                    'unique': '(symbol,regularMarketTime)'
-                }
-            )
+            result = database.create_table('sql/create_tables/stock_quotes.sql')
             if result[0]:
                 self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock_quotes created')
             else:
                 self.logs.write(
                     f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock_quotes not created.'
                     f' Error: {result[1]}')
+
+        if not database.verify_table_exists('stock_indicators'):
+            result = database.create_table('sql/create_tables/stock_indicators.sql')
+            if result[0]:
+                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock_indicators created')
+            else:
+                self.logs.write(
+                    f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock_indicators not created.'
+                    f' Error: {result[1]}')
+
+        if not database.verify_table_exists('stock_dividends'):
+            result = database.create_table('sql/create_tables/stock_dividends.sql')
+            if result[0]:
+                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock_dividends created')
+            else:
+                self.logs.write(
+                    f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Table stock_dividends not created.'
+                    f' Error: {result[1]}')
+
+        database.close_connection()
 
     def extract_api_data(self, endpoint: str) -> None:
         '''
@@ -260,8 +219,7 @@ class StockQuotesPipeline(Logs):
 if __name__ == '__main__':
     pipeline = StockQuotesPipeline()
 
-    pipeline.create_table_stock_struct()
-    pipeline.create_table_stock_quotes_struct()
+    pipeline.create_tables_struct()
     pipeline.extract_api_data('https://brapi.dev/api/available/')
     pipeline.extract_api_data('https://brapi.dev/api/quote/')
 

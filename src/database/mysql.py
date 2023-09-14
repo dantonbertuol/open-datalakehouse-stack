@@ -1,4 +1,7 @@
 import pymysql
+from pathlib import Path
+
+PROJECT_PATH = Path(__file__).absolute().parent.parent.parent
 
 
 class MySQL():
@@ -41,7 +44,7 @@ class MySQL():
             return True
         return False
 
-    def create_table(self, table_name: str, columns: dict) -> list:
+    def create_table(self, path: str) -> list:
         '''
         Create a table in the database
 
@@ -51,10 +54,12 @@ class MySQL():
         '''
         result: list = [True, '']
 
-        sql: str = f'CREATE TABLE {table_name} ('
-        for column in columns:
-            sql += f'{column} {columns[column]}, '
-        sql = sql[:-2] + ')'
+        try:
+            fd = open(Path.joinpath(PROJECT_PATH, path), 'r')
+            sql = fd.read()
+            fd.close()
+        except Exception as e:
+            result = [False, e]
 
         try:
             self.cursor.execute(sql)
