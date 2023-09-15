@@ -8,6 +8,7 @@ LOG_PATH = f'{PROJECT_PATH}/logs/stocks_pipeline/log_' + DATA_LOG + '.txt'
 
 sys.path.insert(1, str(PROJECT_PATH))  # insert path to run in windows
 from elt.extract.brapi_api import BrapiAPI  # noqa: E402
+from elt.extract.yfinance_indicators import Indicators  # noqa: E402
 from src.utils.logs import Logs  # noqa: E402
 from src.database.mysql import MySQL  # noqa: E402
 from elt.transform.clean_data import CleanData  # noqa: E402
@@ -146,6 +147,63 @@ class StockQuotesPipeline(Logs):
 
         database.close_connection()
 
+    def extract_indicators(self):
+        '''
+        Extract indicators from yfinance api
+        '''
+        indicators = Indicators()
+
+        database = MySQL(
+            host='localhost',
+            user='root',
+            password='BrapiDev',
+            database='stock_quotes'
+        )
+
+        stocks = database.get_data('stock', 'symbol')
+
+        stocks = [stock[0] + '.SA' for stock in stocks]
+
+        stock_indicators = indicators.get_indicators(' '.join(stocks))
+
+        for stock in stock_indicators.keys():
+            result = database.insert_data('stock_indicators', stock_indicators[stock])
+            if not result[0]:
+                self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                                f'Stock Indicator {stock} not inserted. Error: {result[1]}')
+
+    def extract_dividends(self):
+        '''
+        Extract dividends from yfinance api
+        '''
+        indicators = Indicators()
+        data: dict = {}
+
+        database = MySQL(
+            host='localhost',
+            user='root',
+            password='BrapiDev',
+            database='stock_quotes'
+        )
+
+        stocks = database.get_data('stock', 'symbol')
+
+        stocks = [stock[0] + '.SA' for stock in stocks]
+
+        stock_indicators = indicators.get_dividends(' '.join(stocks))
+
+        for stock in stock_indicators.keys():
+            for date, value in zip(stock_indicators[stock]['paymentDate'], stock_indicators[stock]['amount']):
+                data = {
+                    'symbol': stock,
+                    'paymentDate': date,
+                    'amount': value
+                }
+                result = database.insert_data('stock_dividends', data)
+                if not result[0]:
+                    self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                                    f'Stock Dividend {stock} not inserted. Error: {result[1]}')
+
     def clean_data(self, env: str, path: list, bucket_from: list, bucket_to: list, fields: list) -> None:
         '''
         Method to clean data
@@ -222,6 +280,9 @@ if __name__ == '__main__':
     pipeline.create_tables_struct()
     pipeline.extract_api_data('https://brapi.dev/api/available/')
     pipeline.extract_api_data('https://brapi.dev/api/quote/')
+
+    pipeline.extract_indicators()
+    pipeline.extract_dividends()
 
     tables_to_clean = ['stocks/stock', 'stocks/stock_quotes']
     buckets_from = ['landing', 'landing']
