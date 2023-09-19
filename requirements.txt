@@ -3,3 +3,4 @@ types-requests==2.30.0.0
 pymysql==1.0.3
 types-pymysql==1.0.19.7
 delta-spark==2.4.0
+yfinance==0.2.28
