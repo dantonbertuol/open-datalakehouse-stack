@@ -5,6 +5,8 @@ from pathlib import Path
 DATA_LOG: str = datetime.now().strftime('%d-%m-%Y')
 PROJECT_PATH = Path(__file__).absolute().parent.parent
 LOG_PATH = f'{PROJECT_PATH}/logs/stocks_pipeline/log_' + DATA_LOG + '.txt'
+BUCKET_DATALAKE = 'datalake'
+BUCKET_LAKEHOUSE = 'lakehouse'
 
 sys.path.insert(1, str(PROJECT_PATH))  # insert path to run in windows
 from elt.extract.brapi_api import BrapiAPI  # noqa: E402
@@ -243,11 +245,9 @@ class StockQuotesPipeline(Logs):
         convert_delta = ConvertDeltaTables(self.env)
 
         paths = ['stocks/stock', 'stocks/stock_quotes', 'stocks/stock_indicators', 'stocks/stock_dividends']
-        bucket_from = 'datalake'
-        bucket_to = 'lakehouse'
 
         for path in paths:
-            result = convert_delta.convert_table(path, bucket_from, bucket_to)
+            result = convert_delta.convert_table(path, BUCKET_DATALAKE, BUCKET_LAKEHOUSE)
             if not result[0]:
                 self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                                 f'Error converting table {path}. Error: {result[1]}')
@@ -265,14 +265,15 @@ class StockQuotesPipeline(Logs):
 
         enrich_delta = EnrichDelta(self.env)
 
-        table_from = ['stock', 'stock_quotes']
-        bucket_from = 'lakehouse'
-        path_from = ['bronze/stocks/stock', 'bronze/stocks/stock_quotes']
-        bucket_to = 'lakehouse'
-        path_to = 'silver/stocks/stocks_quotes/'
+        views: dict = {
+            'stock': 'bronze/stocks/stock',
+            'stock_quotes': 'bronze/stocks/stock_quotes'
+        }
+
+        path_to = 'silver/stocks/'
         table_to = 'stocks_quotes'
 
-        result = enrich_delta.enrich_table(path_from, bucket_from, table_from, bucket_to, path_to, table_to)
+        result = enrich_delta.enrich_table(views, BUCKET_LAKEHOUSE, path_to, table_to)
 
         if not result[0]:
             self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '

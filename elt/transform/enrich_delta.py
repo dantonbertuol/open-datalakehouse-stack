@@ -24,26 +24,19 @@ class EnrichDelta():
         '''
         self.s3 = S3Connect(env)
 
-    def enrich_table(self, path_from: list, bucket_from: list, table_from: list, bucket_to: str,
-                     path_to: str, table_to: str) -> list:
+    def enrich_table(self, views: dict, bucket: str, path_to: str, table_to: str) -> list:
         '''
         Function to enrich table
 
         Args:
-            path_from (list): list of paths from files
-            bucket_from (list): list of buckets from files
-            table_from (list): list of tables from files
-            bucket_to (str): bucket to write new file
+            views (dict): views to create temporary tables
             path_to (str): path to write new file
             table_to (str): table to write new file
         '''
         result: list = [True, '']
 
         try:
-            for rpath, rtable in zip(path_from, table_from):
-                df = self.s3.get_data(bucket_from, rpath, 'delta')
-
-                df.createOrReplaceTempView(rtable)
+            self.s3.load_temp_delta_view(bucket, views)
 
             fd = open(Path.joinpath(PROJECT_PATH, f"sql/enrich_delta/{table_to}.sql"), 'r')
             sqlFile = fd.read()
@@ -51,7 +44,9 @@ class EnrichDelta():
 
             df_final = self.s3.get_data(file_type='sql', sql=sqlFile)
 
-            self.s3.insert_data(df_final, bucket_to, path_to, 'overwrite', 'delta', None, table_to)
+            self.s3.insert_data(df_final, bucket, f'{path_to}/{table_to}', 'overwrite', 'delta', None, table_to)
+
+            self.s3.drop_temp_delta_view(views)
         except Exception as e:
             result = [False, e]
 

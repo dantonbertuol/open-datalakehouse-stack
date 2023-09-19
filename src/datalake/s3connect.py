@@ -109,7 +109,7 @@ class S3Connect():
         elif file_type == 'sql':
             return self.spark.sql(sql)
 
-    def load_temp_delta_view(self, views: dict) -> None:
+    def load_temp_delta_view(self, bucket: str, views: dict) -> None:
         '''
         Load temp delta view
 
@@ -117,7 +117,7 @@ class S3Connect():
             views (dict): dict of view names and paths
         '''
         for view, path in views.items():
-            self.get_data('lakehouse', path, 'delta').createOrReplaceTempView(view)
+            self.get_data(bucket, path, 'delta').createOrReplaceTempView(view)
 
     def drop_temp_delta_view(self, views: dict) -> None:
         '''
