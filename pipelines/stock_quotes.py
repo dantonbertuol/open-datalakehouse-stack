@@ -21,11 +21,12 @@ class StockQuotesPipeline(Logs):
     All quotes pipeline source code
     '''
 
-    def __init__(self) -> None:
+    def __init__(self, env: str) -> None:
         '''
         Constructor method
         '''
         self.logs = Logs(LOG_PATH)
+        self.env = env
 
     def create_tables_struct(self) -> None:
         '''
@@ -204,7 +205,7 @@ class StockQuotesPipeline(Logs):
                     self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                                     f'Stock Dividend {stock} not inserted. Error: {result[1]}')
 
-    def clean_data(self, env: str, path: list, bucket_from: list, bucket_to: list, fields: list) -> None:
+    def clean_data(self, path: list, bucket_from: list, bucket_to: list, fields: list) -> None:
         '''
         Method to clean data
 
@@ -217,7 +218,7 @@ class StockQuotesPipeline(Logs):
         '''
         result: list = [True, '']
 
-        clean_data = CleanData(env)
+        clean_data = CleanData(self.env)
 
         for rpath, rbucket_from, rbucket_to, rfields in zip(path, bucket_from, bucket_to, fields):
             result = clean_data.clean_table(rpath, rbucket_from, rbucket_to, rfields)
@@ -227,45 +228,49 @@ class StockQuotesPipeline(Logs):
 
         clean_data.close_s3_connection()
 
-    def convert_to_delta(self, env: str, path: list, bucket_from: list, bucket_to: list) -> None:
+    def convert_to_delta(self) -> None:
         '''
         Method to convert to delta tables
 
         Args:
             env (str): environment
-            path (list): list of paths to convert
-            bucket_from (list): list of buckets from get data to convert
-            bucket_to (list): list of buckets to write data converted
+            paths (list): list of paths to convert
+            bucket_from (str): bucket from get data to convert
+            bucket_to (str): bucket to write data converted
         '''
         result: list = [True, '']
 
-        convert_delta = ConvertDeltaTables(env)
+        convert_delta = ConvertDeltaTables(self.env)
 
-        for rpath, rbucket_from, rbucket_to in zip(path, bucket_from, bucket_to):
-            result = convert_delta.convert_table(rpath, rbucket_from, rbucket_to)
+        paths = ['stocks/stock', 'stocks/stock_quotes', 'stocks/stock_indicators', 'stocks/stock_dividends']
+        bucket_from = 'datalake'
+        bucket_to = 'lakehouse'
+
+        for path in paths:
+            result = convert_delta.convert_table(path, bucket_from, bucket_to)
             if not result[0]:
                 self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
-                                f'Error converting table {rpath}. Error: {result[1]}')
+                                f'Error converting table {path}. Error: {result[1]}')
 
         convert_delta.close_s3_connection()
 
-    def enrich_delta(self, env: str, path_from: list, bucket_from: list, table_from: list, bucket_to: str,
-                     path_to: str, table_to: str) -> None:
+    def enrich_quote(self) -> None:
         '''
         Method to enrich delta table
 
         Args:
             env (str): environment
-            path_from (list): path from table
-            bucket_from (list): bucket from table
-            table_from (list): table from table
-            bucket_to (str): bucket to insert new table
-            path_to (str): path to insert new table
-            table_to (str): table to insert new table
         '''
         result: list = [True, '']
 
-        enrich_delta = EnrichDelta(env)
+        enrich_delta = EnrichDelta(self.env)
+
+        table_from = ['stock', 'stock_quotes']
+        bucket_from = 'lakehouse'
+        path_from = ['bronze/stocks/stock', 'bronze/stocks/stock_quotes']
+        bucket_to = 'lakehouse'
+        path_to = 'silver/stocks/stocks_quotes/'
+        table_to = 'stocks_quotes'
 
         result = enrich_delta.enrich_table(path_from, bucket_from, table_from, bucket_to, path_to, table_to)
 
@@ -275,7 +280,7 @@ class StockQuotesPipeline(Logs):
 
 
 if __name__ == '__main__':
-    pipeline = StockQuotesPipeline()
+    pipeline = StockQuotesPipeline('TESTE')
 
     pipeline.create_tables_struct()
     pipeline.extract_api_data('https://brapi.dev/api/available/')
@@ -284,22 +289,13 @@ if __name__ == '__main__':
     pipeline.extract_indicators()
     pipeline.extract_dividends()
 
-    tables_to_clean = ['stocks/stock', 'stocks/stock_quotes']
-    buckets_from = ['landing', 'landing']
-    buckets_to = ['processing', 'processing']
-    fields = [['symbol'], ['symbol', 'longName', 'shortName', 'currency', 'marketCap',
-              'regularMarketPrice', 'regularMarketVolume', 'regularMarketTime']]
-    pipeline.clean_data('TESTE', tables_to_clean, buckets_from, buckets_to, fields)
+    # tables_to_clean = ['stocks/stock', 'stocks/stock_quotes']
+    # buckets_from = ['landing', 'landing']
+    # buckets_to = ['processing', 'processing']
+    # fields = [['symbol'], ['symbol', 'longName', 'shortName', 'currency', 'marketCap',
+    #           'regularMarketPrice', 'regularMarketVolume', 'regularMarketTime']]
+    # pipeline.clean_data('TESTE', tables_to_clean, buckets_from, buckets_to, fields)
 
-    tables_to_convet = ['stocks/stock', 'stocks/stock_quotes']
-    buckets_from = ['processing', 'processing']
-    buckets_to = ['lakehouse', 'lakehouse']
-    pipeline.convert_to_delta('TESTE', tables_to_convet, buckets_from, buckets_to)
+    pipeline.convert_to_delta()
 
-    tables_to_enrich = ['stock', 'stock_quotes']
-    buckets_from = ['lakehouse', 'lakehouse']
-    path_from = ['bronze/stocks/stock', 'bronze/stocks/stock_quotes']
-    bucket_to = 'lakehouse'
-    path_to = 'silver/stocks/stocks_quotes/'
-    table_to = 'stocks_quotes'
-    pipeline.enrich_delta('TESTE', path_from, buckets_from, tables_to_enrich, bucket_to, path_to, table_to)
+    pipeline.enrich_quote()

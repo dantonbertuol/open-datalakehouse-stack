@@ -40,8 +40,8 @@ class EnrichDelta():
         result: list = [True, '']
 
         try:
-            for rpath, rbucket_from, rtable in zip(path_from, bucket_from, table_from):
-                df = self.s3.get_data(rbucket_from, rpath, 'delta')
+            for rpath, rtable in zip(path_from, table_from):
+                df = self.s3.get_data(bucket_from, rpath, 'delta')
 
                 df.createOrReplaceTempView(rtable)
 

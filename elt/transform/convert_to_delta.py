@@ -32,7 +32,7 @@ class ConvertDeltaTables():
         result: list = [True, '']
 
         try:
-            df = self.s3.get_data(bucket_from, f'{path}.parquet', 'parquet')
+            df = self.s3.get_data(bucket_from, path, 'csv')
 
             df.write.mode("overwrite").format("delta").option(
                 "mergeSchema", "true").save(f"s3a://{bucket_to}/bronze/{path}/")
