@@ -109,6 +109,26 @@ class S3Connect():
         elif file_type == 'sql':
             return self.spark.sql(sql)
 
+    def load_temp_delta_view(self, views: dict) -> None:
+        '''
+        Load temp delta view
+
+        Args:
+            views (dict): dict of view names and paths
+        '''
+        for view, path in views.items():
+            self.get_data('lakehouse', path, 'delta').createOrReplaceTempView(view)
+
+    def drop_temp_delta_view(self, views: dict) -> None:
+        '''
+        Drop temp delta view
+
+        Args:
+            views (dict): dict of view names and paths
+        '''
+        for view in views.keys():
+            self.spark.catalog.dropTempView(view)
+
     def close_spark_session(self):
         '''
         Close spark session
