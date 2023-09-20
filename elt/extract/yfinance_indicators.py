@@ -80,13 +80,14 @@ class Indicators():
 
         for ticker in tickers_data.tickers.keys():
             payments = tickers_data.tickers[ticker].dividends
-            paymentDates = list(payments.index.strftime('%Y-%m-%d'))
-            amounts = list(payments.values)
+            if len(payments) > 0:
+                paymentDates = list(payments.index.strftime('%Y-%m-%d'))
+                amounts = list(payments.values)
 
-            data[ticker] = {
-                'paymentDate': paymentDates,
-                'amount': amounts
-            }
+                data[ticker] = {
+                    'paymentDate': paymentDates,
+                    'amount': amounts
+                }
 
         return data
 
