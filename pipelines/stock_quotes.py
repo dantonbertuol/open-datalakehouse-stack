@@ -107,6 +107,10 @@ class StockQuotesPipeline(Logs):
                 stocks = data.get('stocks')
 
                 for stock in stocks:  # type: ignore
+                    # Não insere ações fracionarias
+                    if stock.endswith('F'):
+                        continue
+
                     result_ = database.insert_data('stock', {'symbol': stock})
                     if not result_[0]:
                         self.logs.write(
@@ -297,6 +301,6 @@ if __name__ == '__main__':
     #           'regularMarketPrice', 'regularMarketVolume', 'regularMarketTime']]
     # pipeline.clean_data('TESTE', tables_to_clean, buckets_from, buckets_to, fields)
 
-    pipeline.convert_to_delta()
+    # pipeline.convert_to_delta()
 
-    pipeline.enrich_quote()
+    # pipeline.enrich_quote()
