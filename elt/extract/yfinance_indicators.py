@@ -32,33 +32,36 @@ class Indicators():
         earnings_growth: float = 0.0
 
         for ticker in tickers_data.tickers.keys():
-            ticker_infos = tickers_data.tickers[ticker]
-            website = ticker_infos.info.get('website')
-            country = ticker_infos.info.get('country')
-            industry = ticker_infos.info.get('industry')
-            sector = ticker_infos.info.get('sector')
-            employes = ticker_infos.info.get('fullTimeEmployees')
-            dy = ticker_infos.info.get('dividendYield')
-            peg_ratio = ticker_infos.info.get('pegRatio')
-            recomendation = ticker_infos.info.get('recommendationKey')
-            ebitda = ticker_infos.info.get('ebitda')
-            debt = ticker_infos.info.get('totalDebt')
-            earnings_growth = ticker_infos.info.get('earningsGrowth')
+            try:
+                ticker_infos = tickers_data.tickers[ticker]
+                website = ticker_infos.info.get('website')
+                country = ticker_infos.info.get('country')
+                industry = ticker_infos.info.get('industry')
+                sector = ticker_infos.info.get('sector')
+                employes = ticker_infos.info.get('fullTimeEmployees')
+                dy = ticker_infos.info.get('dividendYield')
+                peg_ratio = ticker_infos.info.get('pegRatio')
+                recomendation = ticker_infos.info.get('recommendationKey')
+                ebitda = ticker_infos.info.get('ebitda')
+                debt = ticker_infos.info.get('totalDebt')
+                earnings_growth = ticker_infos.info.get('earningsGrowth')
 
-            data[ticker] = {
-                'website': website,
-                'country': country,
-                'industry': industry,
-                'sector': sector,
-                'employes': employes,
-                'symbol': ticker,
-                'dy': dy,
-                'pegRatio': peg_ratio,
-                'recomendation': recomendation,
-                'ebitda': ebitda,
-                'debt': debt,
-                'earningsGrowth': earnings_growth
-            }
+                data[ticker] = {
+                    'website': website,
+                    'country': country,
+                    'industry': industry,
+                    'sector': sector,
+                    'employes': employes,
+                    'symbol': ticker,
+                    'dy': dy,
+                    'pegRatio': peg_ratio,
+                    'recomendation': recomendation,
+                    'ebitda': ebitda,
+                    'debt': debt,
+                    'earningsGrowth': earnings_growth
+                }
+            except Exception:
+                pass
 
         return data
 
