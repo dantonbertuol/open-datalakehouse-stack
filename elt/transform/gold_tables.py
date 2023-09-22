@@ -44,7 +44,7 @@ class GoldTables():
 
             df_final = self.s3.get_data(file_type='sql', sql=sqlFile)
 
-            self.s3.insert_data(df_final, bucket, f'{path_to}/{table_to}', 'overwrite', 'delta', None, table_to)
+            self.s3.insert_data(df_final, bucket, f'{path_to}/{table_to}', 'overwrite', 'deltatable', None, table_to)
 
             self.s3.drop_temp_delta_view(views)
         except Exception as e:
