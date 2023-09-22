@@ -16,6 +16,7 @@ from src.database.mysql import MySQL  # noqa: E402
 from elt.transform.clean_data import CleanData  # noqa: E402
 from elt.transform.convert_to_delta import ConvertDeltaTables  # noqa: E402
 from elt.transform.enrich_delta import EnrichDelta  # noqa: E402
+from elt.transform.gold_tables import GoldTables  # noqa: E402
 
 
 class StockQuotesPipeline(Logs):
@@ -322,6 +323,91 @@ class StockQuotesPipeline(Logs):
             self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                             f'Error enriching table {table_to}. Error: {result[1]}')
 
+    def gold_stock(self) -> None:
+        '''
+        Method to gold stock table
+        '''
+        result: list = [True, '']
+
+        gold_tables = GoldTables(self.env)
+
+        views: dict = {
+            'stock': 'bronze/stocks/stock',
+            'stock_quotes': 'bronze/stocks/stock_quotes'
+        }
+
+        path_to = 'gold/stocks/'
+        table_to = 'stock'
+
+        result = gold_tables.gold_table(views, BUCKET_LAKEHOUSE, path_to, table_to)
+
+        if not result[0]:
+            self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                            f'Error golding table {table_to}. Error: {result[1]}')
+
+    def gold_stock_quotes(self) -> None:
+        '''
+        Method to gold stock quotes table
+        '''
+        result: list = [True, '']
+
+        gold_tables = GoldTables(self.env)
+
+        views: dict = {
+            'stock_quotes': 'bronze/stocks/stock_quotes',
+        }
+
+        path_to = 'gold/stocks/'
+        table_to = 'stock_quotes'
+
+        result = gold_tables.gold_table(views, BUCKET_LAKEHOUSE, path_to, table_to)
+
+        if not result[0]:
+            self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                            f'Error golding table {table_to}. Error: {result[1]}')
+
+    def gold_stock_indicators(self) -> None:
+        '''
+        Method to gold stock indicators table
+        '''
+        result: list = [True, '']
+
+        gold_tables = GoldTables(self.env)
+
+        views: dict = {
+            'stock_indicators': 'silver/stocks/stock_indicators',
+        }
+
+        path_to = 'gold/stocks/'
+        table_to = 'stock_indicators'
+
+        result = gold_tables.gold_table(views, BUCKET_LAKEHOUSE, path_to, table_to)
+
+        if not result[0]:
+            self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                            f'Error golding table {table_to}. Error: {result[1]}')
+
+    def gold_stock_dividends(self) -> None:
+        '''
+        Method to gold stock dividends table
+        '''
+        result: list = [True, '']
+
+        gold_tables = GoldTables(self.env)
+
+        views: dict = {
+            'stock_dividends': 'silver/stocks/stock_dividends',
+        }
+
+        path_to = 'gold/stocks/'
+        table_to = 'stock_dividends'
+
+        result = gold_tables.gold_table(views, BUCKET_LAKEHOUSE, path_to, table_to)
+
+        if not result[0]:
+            self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                            f'Error golding table {table_to}. Error: {result[1]}')
+
 
 if __name__ == '__main__':
     pipeline = StockQuotesPipeline('TESTE')
@@ -345,3 +431,8 @@ if __name__ == '__main__':
     pipeline.enrich_quote()
     pipeline.enrich_indicators()
     pipeline.enrich_dividends()
+
+    pipeline.gold_stock()
+    pipeline.gold_stock_quotes()
+    pipeline.gold_stock_indicators()
+    pipeline.gold_stock_dividends()
