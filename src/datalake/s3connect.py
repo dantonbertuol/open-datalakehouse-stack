@@ -83,8 +83,10 @@ class S3Connect():
                 f"s3a://{bucket_name}/{path}.parquet")
         elif file_type == 'delta':
             df.write.format("delta").mode("overwrite"). \
-                option("mergeSchema", "true").option("delta.columnMapping.mode", "name"). \
-                option("path", f"s3a://{bucket_name}/{path}").saveAsTable(table)
+                option("mergeSchema", "true").option("path", f"s3a://{bucket_name}/{path}").save()
+        elif file_type == 'deltatable':
+            df.write.format("delta").mode("overwrite"). \
+                option("mergeSchema", "true").option("path", f"s3a://{bucket_name}/{path}").saveAsTable(table)
 
     def get_data(self, bucket_name: str = '', path: str = '', file_type: str = '', sql: str = ''):
         '''
