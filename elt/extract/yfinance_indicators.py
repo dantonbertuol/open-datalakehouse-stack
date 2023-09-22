@@ -46,6 +46,9 @@ class Indicators():
                 debt = ticker_infos.info.get('totalDebt')
                 earnings_growth = ticker_infos.info.get('earningsGrowth')
 
+                if website == country == industry == sector == employes == dy == peg_ratio == recomendation == \
+                        ebitda == debt == earnings_growth is None:
+                    continue
                 data[ticker] = {
                     'website': website,
                     'country': country,
@@ -94,5 +97,5 @@ class Indicators():
 
 if __name__ == '__main__':
     indicators = Indicators()
-    indicators.get_indicators('AAPL34.SA MSFT34.SA')
-    indicators.get_dividends('AAPL34.SA MSFT34.SA')
+    indicators.get_indicators('5GTK11.SA')
+    indicators.get_dividends('5GTK11.SA')
