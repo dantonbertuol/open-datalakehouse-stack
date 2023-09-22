@@ -261,9 +261,6 @@ class StockQuotesPipeline(Logs):
     def enrich_quote(self) -> None:
         '''
         Method to enrich delta table
-
-        Args:
-            env (str): environment
         '''
         result: list = [True, '']
 
@@ -276,6 +273,48 @@ class StockQuotesPipeline(Logs):
 
         path_to = 'silver/stocks/'
         table_to = 'stocks_quotes'
+
+        result = enrich_delta.enrich_table(views, BUCKET_LAKEHOUSE, path_to, table_to)
+
+        if not result[0]:
+            self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                            f'Error enriching table {table_to}. Error: {result[1]}')
+
+    def enrich_indicators(self) -> None:
+        '''
+        Method to enrich delta table
+        '''
+        result: list = [True, '']
+
+        enrich_delta = EnrichDelta(self.env)
+
+        views: dict = {
+            'stock_indicators': 'bronze/stocks/stock_indicators',
+        }
+
+        path_to = 'silver/stocks/'
+        table_to = 'stock_indicators'
+
+        result = enrich_delta.enrich_table(views, BUCKET_LAKEHOUSE, path_to, table_to)
+
+        if not result[0]:
+            self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
+                            f'Error enriching table {table_to}. Error: {result[1]}')
+
+    def enrich_dividends(self) -> None:
+        '''
+        Method to enrich delta table
+        '''
+        result: list = [True, '']
+
+        enrich_delta = EnrichDelta(self.env)
+
+        views: dict = {
+            'stock_dividends': 'bronze/stocks/stock_dividends',
+        }
+
+        path_to = 'silver/stocks/'
+        table_to = 'stock_dividends'
 
         result = enrich_delta.enrich_table(views, BUCKET_LAKEHOUSE, path_to, table_to)
 
@@ -301,6 +340,8 @@ if __name__ == '__main__':
     #           'regularMarketPrice', 'regularMarketVolume', 'regularMarketTime']]
     # pipeline.clean_data('TESTE', tables_to_clean, buckets_from, buckets_to, fields)
 
-    # pipeline.convert_to_delta()
+    pipeline.convert_to_delta()
 
-    # pipeline.enrich_quote()
+    pipeline.enrich_quote()
+    pipeline.enrich_indicators()
+    pipeline.enrich_dividends()
