@@ -8,7 +8,7 @@ CREATE TABLE stock_indicators(
     employes INT,
     dy FLOAT,
     pegRatio FLOAT,
-    recomendation VARCHAR(10),
+    recomendation VARCHAR(30),
     ebitda FLOAT,
     debt FLOAT,
     earningsGrowth FLOAT,
