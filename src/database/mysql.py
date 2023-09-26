@@ -122,6 +122,29 @@ class MySQL():
             print('Erro ao buscar dados: ', e)
             return ('ERROR',)
 
+    def truncate_table(self, table: str) -> list:
+        '''
+        Truncate table
+
+        Args:
+            table (str): table name
+
+        Returns:
+            list: list with result of truncate
+        '''
+        result: list = [True, '']
+
+        sql = f'TRUNCATE TABLE {table}'
+
+        try:
+            self.cursor.execute(sql)
+            self.connection.commit()
+        except Exception as e:
+            self.connection.rollback()
+            result = [False, e]
+
+        return result
+
     def close_connection(self) -> None:
         '''
         Close database connection
