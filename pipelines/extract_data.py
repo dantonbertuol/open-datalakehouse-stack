@@ -227,6 +227,12 @@ class ExtractData():
 
         database.close_connection()
 
+    def finish(self) -> None:
+        '''
+        Finish method
+        '''
+        self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Finish Extract Data in {self.env}')
+
 
 if __name__ == '__main__':
     extract_data = ExtractData('TESTE')
@@ -238,3 +244,5 @@ if __name__ == '__main__':
 
     extract_data.extract_indicators()
     extract_data.extract_dividends()
+
+    extract_data.finish()

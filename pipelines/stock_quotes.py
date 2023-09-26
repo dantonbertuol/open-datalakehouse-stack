@@ -104,6 +104,8 @@ class StockQuotesPipeline(Logs):
             self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                             f'Error enriching table {table_to}. Error: {result[1]}')
 
+        enrich_delta.close_s3_connection()
+
     def enrich_indicators(self) -> None:
         '''
         Method to enrich delta table
@@ -127,6 +129,8 @@ class StockQuotesPipeline(Logs):
             self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                             f'Error enriching table {table_to}. Error: {result[1]}')
 
+        enrich_delta.close_s3_connection()
+
     def enrich_dividends(self) -> None:
         '''
         Method to enrich delta table
@@ -149,6 +153,8 @@ class StockQuotesPipeline(Logs):
         if not result[0]:
             self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                             f'Error enriching table {table_to}. Error: {result[1]}')
+
+        enrich_delta.close_s3_connection()
 
     def gold_stock(self) -> None:
         '''
@@ -174,6 +180,8 @@ class StockQuotesPipeline(Logs):
             self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                             f'Error golding table {table_to}. Error: {result[1]}')
 
+        gold_tables.close_s3_connection()
+
     def gold_stock_quotes(self) -> None:
         '''
         Method to gold stock quotes table
@@ -196,6 +204,8 @@ class StockQuotesPipeline(Logs):
         if not result[0]:
             self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                             f'Error golding table {table_to}. Error: {result[1]}')
+
+        gold_tables.close_s3_connection()
 
     def gold_stock_indicators(self) -> None:
         '''
@@ -220,6 +230,8 @@ class StockQuotesPipeline(Logs):
             self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                             f'Error golding table {table_to}. Error: {result[1]}')
 
+        gold_tables.close_s3_connection()
+
     def gold_stock_dividends(self) -> None:
         '''
         Method to gold stock dividends table
@@ -243,6 +255,14 @@ class StockQuotesPipeline(Logs):
             self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: '
                             f'Error golding table {table_to}. Error: {result[1]}')
 
+        gold_tables.close_s3_connection()
+
+    def finish(self) -> None:
+        '''
+        Method to finish pipeline
+        '''
+        self.logs.write(f'{datetime.now().strftime("%d-%m-%Y %H:%M:%S")}: Stock Quotes Pipeline finished')
+
 
 if __name__ == '__main__':
     pipeline = StockQuotesPipeline('TESTE')
@@ -264,3 +284,5 @@ if __name__ == '__main__':
     pipeline.gold_stock_quotes()
     pipeline.gold_stock_indicators()
     pipeline.gold_stock_dividends()
+
+    pipeline.finish()
