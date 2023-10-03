@@ -1,4 +1,5 @@
 import requests
+from os import getenv
 
 
 class Consumer():
@@ -6,7 +7,7 @@ class Consumer():
     Consumer class to get data from an endpoint
     '''
 
-    def __init__(self, endpoint: str) -> None:
+    def __init__(self, endpoint: str, token: str = "") -> None:
         '''
         Constructor
 
@@ -14,6 +15,7 @@ class Consumer():
             endpoint (str): endpoint to get data
         '''
         self.endpoint: str = endpoint
+        self.token: str = token
 
     def get_data(self, filter: str = "") -> dict:
         '''
@@ -22,8 +24,13 @@ class Consumer():
         Returns:
             dict: data from endpoint
         '''
-        response = requests.get(self.endpoint + filter)
+        url: str = self.endpoint + filter
+
+        if self.token != "":
+            url += f'?token={self.token}'
+
         try:
+            response = requests.get(url)
             json = response.json()
         except Exception as e:
             json = {'error': e}
@@ -32,5 +39,6 @@ class Consumer():
 
 
 if __name__ == '__main__':
-    test = Consumer('https://brapi.dev/api/availabl/')
-    test.get_data()
+    token = getenv('BRAPI_TOKEN')  # Get token from environment variable
+    test = Consumer('https://brapi.dev/api/quote/', token)
+    test.get_data('AAPL34')

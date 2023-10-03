@@ -1,6 +1,7 @@
 from datetime import datetime
 import sys
 from pathlib import Path
+from os import getenv
 
 DATA_LOG: str = datetime.now().strftime('%d-%m-%Y')
 PROJECT_PATH = Path(__file__).absolute().parent.parent
@@ -78,7 +79,7 @@ class ExtractData():
 
         database.close_connection()
 
-    def extract_api_data(self, endpoint: str) -> None:
+    def extract_api_data(self, endpoint: str, token: str) -> None:
         '''
         Extract data from api
 
@@ -101,7 +102,7 @@ class ExtractData():
 
         # Available Endpoint
         if 'available' in endpoint:
-            brapi_api = BrapiAPI(endpoint)
+            brapi_api = BrapiAPI(endpoint, token)
             data = brapi_api.get_data()
             if data.get('error') is None:
                 stocks = data.get('stocks')
@@ -127,7 +128,7 @@ class ExtractData():
 
             # Somente busca cotação se retornou algum stock
             if len(stocks) > 0:
-                quotes = BrapiAPI(endpoint)
+                quotes = BrapiAPI(endpoint, token)
 
                 # Busca 200 por vez por limitação da API
                 for stock in stocks:
@@ -239,8 +240,9 @@ if __name__ == '__main__':
 
     extract_data.create_tables_struct()
 
-    extract_data.extract_api_data('https://brapi.dev/api/available/')
-    extract_data.extract_api_data('https://brapi.dev/api/quote/')
+    token = getenv('BRAPI_TOKEN')  # Get token from environment variable
+    extract_data.extract_api_data('https://brapi.dev/api/available/', token)
+    extract_data.extract_api_data('https://brapi.dev/api/quote/', token)
 
     extract_data.extract_indicators()
     extract_data.extract_dividends()
